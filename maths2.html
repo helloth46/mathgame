@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小二數學：4位數大挑戰</title>
+    <style>
+        :root {
+            --wood: #8b4513;
+            --leaf: #2e7d32;
+            --sky: #e0f2f1;
+            --paper: #fff9c4;
+        }
+        body {
+            background-color: var(--sky);
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+        .game-container {
+            background-color: white;
+            border: 8px solid var(--wood);
+            border-radius: 30px;
+            padding: 30px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            position: relative;
+        }
+        h1 { color: var(--leaf); margin-top: 0; font-size: 28px; }
+        .mission-box {
+            background-color: var(--paper);
+            border: 3px dashed var(--wood);
+            padding: 15px;
+            border-radius: 15px;
+            font-size: 22px;
+            font-weight: bold;
+            color: #d84315;
+            margin-bottom: 25px;
+        }
+        .section-title { font-size: 16px; color: #666; margin-bottom: 10px; }
+        .card-row {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            min-height: 100px;
+        }
+        .num-card {
+            width: 70px;
+            height: 100px;
+            background: linear-gradient(135deg, #ffeb3b, #fbc02d);
+            border: 3px solid var(--wood);
+            border-radius: 12px;
+            font-size: 40px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 5px 0 var(--wood);
+            transition: 0.1s;
+            user-select: none;
+        }
+        .num-card:active { transform: translateY(4px); box-shadow: none; }
+        .num-card.hidden { opacity: 0.1; cursor: default; transform: scale(0.9); }
+        
+        .slot {
+            width: 70px;
+            height: 100px;
+            border: 4px solid #bdbdbd;
+            border-radius: 12px;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .slot.filled { border-color: var(--leaf); background-color: #e8f5e9; }
+
+        .button-group { display: flex; gap: 15px; justify-content: center; margin-top: 10px; }
+        .btn {
+            padding: 15px 30px;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            color: white;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.2);
+            transition: 0.1s;
+        }
+        .btn-check { background-color: #43a047; }
+        .btn-next { background-color: #1e88e5; }
+        .btn-reset { background-color: #e53935; }
+        .btn:active { transform: translateY(3px); box-shadow: none; }
+
+        #feedback {
+            margin-top: 25px;
+            font-size: 20px;
+            font-weight: bold;
+            min-height: 1.5em;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .win { color: #2e7d32; background-color: #c8e6c9; }
+        .wrong { color: #c62828; background-color: #ffcdd2; }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <h1>🌳 森林數學小老師 🔢</h1>
+        
+        <div id="mission" class="mission-box">正在準備題目...</div>
+
+        <div class="section-title">你的卡片 (點擊數字)：</div>
+        <div class="card-row" id="pool"></div>
+
+        <div class="section-title">把數字排在這裡：</div>
+        <div class="card-row">
+            <div class="slot" id="slot0" onclick="popNum(0)"></div>
+            <div class="slot" id="slot1" onclick="popNum(1)"></div>
+            <div class="slot" id="slot2" onclick="popNum(2)"></div>
+            <div class="slot" id="slot3" onclick="popNum(3)"></div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn btn-reset" onclick="resetAnswer()">重排 🔄</button>
+            <button class="btn btn-check" onclick="checkAnswer()">檢查答案 ✔️</button>
+            <button class="btn btn-next" onclick="initGame()">下一題 ➔</button>
+        </div>
+
+        <div id="feedback"></div>
+    </div>
+
+<script>
+    let cards = [];
+    let selectedIndices = [];
+    let missionType = "";
+
+    function initGame() {
+        const types = ["最大4位奇數", "最小4位奇數", "最大4位偶數", "最小4位偶數"];
+        missionType = types[Math.floor(Math.random() * types.length)];
+        document.getElementById('mission').innerText = "任務：" + missionType;
+        
+        // 確保題目一定有解 (必須有奇數/偶數，且有非0數字)
+        let valid = false;
+        while (!valid) {
+            cards = Array.from({length: 4}, () => Math.floor(Math.random() * 10));
+            let hasOdd = cards.some(n => n % 2 !== 0);
+            let hasEven = cards.some(n => n % 2 === 0);
+            let hasNonZero = cards.some(n => n !== 0);
+            
+            if (hasNonZero && (missionType.includes("奇數") ? hasOdd : hasEven)) {
+                // 檢查是否真的能排成4位數 (如果只有一個非0，而它又是唯一的奇數且被要求排在末位)
+                let best = calculateBest();
+                if (best !== null) valid = true;
+            }
+        }
+
+        selectedIndices = [];
+        document.getElementById('feedback').innerText = "";
+        document.getElementById('feedback').className = "";
+        render();
+    }
+
+    function render() {
+        const pool = document.getElementById('pool');
+        pool.innerHTML = "";
+        cards.forEach((num, index) => {
+            let div = document.createElement('div');
+            div.className = "num-card" + (selectedIndices.includes(index) ? " hidden" : "");
+            div.innerText = num;
+            div.onclick = () => pushNum(index);
+            pool.appendChild(div);
+        });
+
+        for (let i = 0; i < 4; i++) {
+            const slot = document.getElementById('slot' + i);
+            if (selectedIndices[i] !== undefined) {
+                slot.innerText = cards[selectedIndices[i]];
+                slot.classList.add('filled');
+            } else {
+                slot.innerText = "";
+                slot.classList.remove('filled');
+            }
+        }
+    }
+
+    function pushNum(idx) {
+        if (selectedIndices.length < 4 && !selectedIndices.includes(idx)) {
+            selectedIndices.push(idx);
+            render();
+        }
+    }
+
+    function popNum(slotIdx) {
+        if (selectedIndices[slotIdx] !== undefined) {
+            selectedIndices.splice(slotIdx, 1);
+            render();
+        }
+    }
+
+    function resetAnswer() {
+        selectedIndices = [];
+        render();
+    }
+
+    function checkAnswer() {
+        const fb = document.getElementById('feedback');
+        if (selectedIndices.length < 4) {
+            fb.innerText = "要把 4 個格子都填滿喔！";
+            fb.className = "wrong";
+            return;
+        }
+
+        let userDigits = selectedIndices.map(i => cards[i]);
+        let userNum = parseInt(userDigits.join(''));
+
+        // 規則1: 首位不能為0
+        if (userDigits[0] === 0) {
+            fb.innerText = "首位不能是 0 呀！小朋友再試試。";
+            fb.className = "wrong";
+            return;
+        }
+
+        // 規則2: 奇偶檢查
+        let isOdd = userDigits[3] % 2 !== 0;
+        if (missionType.includes("奇數") && !isOdd) {
+            fb.innerText = "這不是奇數（尾數要是 1, 3, 5, 7, 9）";
+            fb.className = "wrong";
+            return;
+        }
+        if (missionType.includes("偶數") && isOdd) {
+            fb.innerText = "這不是偶數（尾數要是 0, 2, 4, 6, 8）";
+            fb.className = "wrong";
+            return;
+        }
+
+        // 規則3: 最大最小檢查
+        let bestNum = calculateBest();
+        if (userNum === bestNum) {
+            fb.innerText = "🎉 太棒了！你找到了正確答案！";
+            fb.className = "win";
+        } else {
+            fb.innerText = "符合規則，但這不是「" + missionType.substring(0,2) + "」的喔！";
+            fb.className = "wrong";
+        }
+    }
+
+    function calculateBest() {
+        let all = [];
+        function permute(arr, m = []) {
+            if (arr.length === 0) {
+                if (m[0] !== 0) {
+                    let last = m[3];
+                    let isO = last % 2 !== 0;
+                    if ((missionType.includes("奇數") && isO) || (missionType.includes("偶數") && !isO)) {
+                        all.push(parseInt(m.join('')));
+                    }
+                }
+            } else {
+                for (let i = 0; i < arr.length; i++) {
+                    let curr = [...arr];
+                    let next = curr.splice(i, 1);
+                    permute(curr, m.concat(next));
+                }
+            }
+        }
+        permute(cards);
+        if (all.length === 0) return null;
+        return missionType.includes("最大") ? Math.max(...all) : Math.min(...all);
+    }
+
+    // 啟動遊戲
+    initGame();
+</script>
+
+</body>
+</html>
